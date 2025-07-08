@@ -1,0 +1,40 @@
+{
+    "manifest_version": 3,
+    "name": "Walmart Lens",
+    "version": "1.0",
+    "description": "Capture and mark screenshots from the browser.",
+    "permissions": [
+        "tabs",
+        "activeTab",
+        "scripting"
+    ],
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ],
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": "logo.png"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "*.js",
+                "*.css"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
+}
