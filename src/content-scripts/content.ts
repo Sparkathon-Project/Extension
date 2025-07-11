@@ -2,10 +2,13 @@ interface Point {
     x: number;
     y: number;
 }
+interface SearchMessage {
+    type: 'SEARCH_DATA';
+    query: string;
+    clicks: [number, number][];
+    imageBlob: Blob | null;
+}
 
-const SERVER_URL = 'http://localhost:5000/search';
-
-// Overlay
 class Overlay {
     private container: HTMLDivElement;
     private imageContainer!: HTMLDivElement;
@@ -40,7 +43,6 @@ class Overlay {
     }
 
     private setupOverlay() {
-        // Create image container
         this.imageContainer = document.createElement('div');
         this.imageContainer.style.cssText = `
             position: relative;
@@ -52,7 +54,6 @@ class Overlay {
             cursor: crosshair;
         `;
 
-        // Create screenshot image
         const img = document.createElement('img');
         img.src = this.screenshot;
         img.style.cssText = `
@@ -62,7 +63,6 @@ class Overlay {
             object-fit: contain;
         `;
 
-        // Wait for image to load to get dimensions
         img.onload = () => {
             this.displayScale = img.offsetWidth / img.naturalWidth;
             img.addEventListener('click', this.handleImageClick.bind(this));
@@ -72,7 +72,7 @@ class Overlay {
         this.imageContainer.appendChild(img);
         this.container.appendChild(this.imageContainer);
 
-        // Create toolbar
+        // Toolbar
         const toolbar = document.createElement('div');
         toolbar.style.cssText = `
             position: fixed;
@@ -81,31 +81,58 @@ class Overlay {
             transform: translateX(-50%);
             z-index: 1000000;
             display: flex;
-            gap: 8px;
+            flex-direction: column;
+            gap: 20px;
             background: rgba(0, 0, 0, 0.8);
             padding: 12px;
             border-radius: 8px;
             backdrop-filter: blur(10px);
+            align-items: center;
         `;
 
-        // Instructions
         const instructions = document.createElement('div');
         instructions.style.cssText = `
             color: #fff;
             font-family: Arial, sans-serif;
             font-size: 14px;
-            margin-right: 20px;
+            margin-right: 10px;
             line-height: 1.4;
         `;
         instructions.innerHTML = `
-            <strong>Click on the image to mark object with points</strong>
+            <strong>Click on the image to mark object or enter a query</strong>
         `;
-        instructions.id = 'instructions';
         toolbar.appendChild(instructions);
+
+        // Query input
+        const queryInput = document.createElement('input');
+        queryInput.type = 'text';
+        queryInput.placeholder = 'Enter your query...';
+        queryInput.id = 'query-input';
+        queryInput.style.cssText = `
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            min-width: 240px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            transition: all 0.2s;
+        `;
+        queryInput.addEventListener('focus', () => {
+            queryInput.style.borderColor = '#2196f3';
+            queryInput.style.boxShadow = '0 0 6px #2196f3';
+        });
+        queryInput.addEventListener('blur', () => {
+            queryInput.style.borderColor = '#ccc';
+            queryInput.style.boxShadow = 'none';
+        });
+        queryInput.addEventListener('input', () => {
+            this.updateUI();
+        });
+        toolbar.appendChild(queryInput);
 
         this.container.appendChild(toolbar);
 
-        // Action buttons container
+        // Actions
         const actionsContainer = document.createElement('div');
         actionsContainer.style.cssText = `
             position: fixed;
@@ -116,7 +143,6 @@ class Overlay {
             gap: 8px;
         `;
 
-        // Search button
         const searchButton = document.createElement('button');
         searchButton.textContent = 'Search';
         searchButton.style.cssText = `
@@ -131,9 +157,12 @@ class Overlay {
             font-weight: bold;
             transition: all 0.2s;
         `;
-
-        // Initial state set by updateUI call after img.onload
-        searchButton.addEventListener('click', this.performSegmentation.bind(this));
+        searchButton.id = 'search-button';
+        searchButton.addEventListener('click', () => {
+            const queryInput = document.getElementById('query-input') as HTMLInputElement;
+            const query = queryInput?.value.trim() || '';
+            this.openWebsite(query);
+        });
         searchButton.addEventListener('mouseenter', () => {
             if (!searchButton.disabled) {
                 searchButton.style.background = '#45a049';
@@ -144,10 +173,8 @@ class Overlay {
             searchButton.style.background = '#4caf50';
             searchButton.style.transform = 'scale(1)';
         });
-        searchButton.id = 'search-button';
         actionsContainer.appendChild(searchButton);
 
-        // Clear button
         const clearButton = document.createElement('button');
         clearButton.textContent = 'Clear';
         clearButton.style.cssText = `
@@ -173,7 +200,6 @@ class Overlay {
         });
         actionsContainer.appendChild(clearButton);
 
-        // Close button
         const closeButton = document.createElement('button');
         closeButton.textContent = 'Close';
         closeButton.style.cssText = `
@@ -201,7 +227,7 @@ class Overlay {
 
         this.container.appendChild(actionsContainer);
 
-        // Status container for loading/error messages
+        // Status container
         const statusContainer = document.createElement('div');
         statusContainer.style.cssText = `
             position: fixed;
@@ -228,14 +254,10 @@ class Overlay {
         const rect = (event.target as HTMLImageElement).getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        // Convert to original image coordinates
         const originalX = Math.round(x / this.displayScale);
         const originalY = Math.round(y / this.displayScale);
-        // Add click point
         this.clicks.push({ x: originalX, y: originalY });
-        // Add visual indicator
         this.addClickIndicator(x, y);
-        // Update UI
         this.updateUI();
     }
 
@@ -260,20 +282,21 @@ class Overlay {
 
     private updateUI() {
         const searchButton = document.getElementById('search-button') as HTMLButtonElement;
+        const queryInput = document.getElementById('query-input') as HTMLInputElement;
+
+        const hasQuery = queryInput?.value.trim().length > 0;
+        const hasPoints = this.clicks.length > 0;
 
         if (searchButton) {
-            searchButton.disabled = this.clicks.length === 0;
-            searchButton.style.opacity = this.clicks.length > 0 ? '1' : '0.5';
+            searchButton.disabled = !hasQuery && !hasPoints;
+            searchButton.style.opacity = searchButton.disabled ? '0.5' : '1';
         }
     }
 
     private clearClicks() {
         this.clicks = [];
-
-        // Remove visual indicators
         const indicators = this.imageContainer.querySelectorAll('.click-indicator');
         indicators.forEach(indicator => indicator.remove());
-
         this.updateUI();
     }
 
@@ -292,59 +315,51 @@ class Overlay {
         statusContainer.textContent = message;
         statusContainer.style.display = 'block';
 
-        if (type !== 'error') {
+        if (type === 'success' || type === 'error') {
             setTimeout(() => {
-                statusContainer.style.display = 'none';
+                this.hideStatus();
             }, 10000);
         }
     }
 
-    private async performSegmentation() {
-        if (this.clicks.length === 0) {
-            this.showStatus('Please click on the image to mark points first', 'error');
+    private hideStatus() {
+        const statusContainer = document.getElementById('status-container');
+        if (statusContainer) {
+            statusContainer.style.display = 'none';
+        }
+    }
+
+    private async openWebsite(query: string): Promise<void> {
+        const newWindow = window.open('http://localhost:3000/', '_blank');
+        if (!newWindow) {
+            console.error('Failed to open new window');
             return;
         }
-
-        this.showStatus('Searching... Please wait', 'info');
+        const clicks: [number, number][] = this.clicks.map(p => [p.x, p.y]);
 
         try {
-            // Convert screenshot to blob
             const response = await fetch(this.screenshot);
             const blob = await response.blob();
 
-            // Prepare form data
-            const formData = new FormData();
-            formData.append('image', blob, 'screenshot.png');
-            formData.append('clicks', JSON.stringify(this.clicks.map(p => [p.x, p.y])));
+            const message: SearchMessage = {
+                type: 'SEARCH_DATA',
+                query,
+                clicks,
+                imageBlob: blob
+            };
 
-            // Send to server
-            const serverResponse = await fetch(SERVER_URL, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!serverResponse.ok) {
-                // Attempt to read error message from server response if available
-                const errorBody = await serverResponse.text();
-                throw new Error(`Server error: ${serverResponse.status} ${errorBody}`);
-            }
-            const json = await serverResponse.json();
-            const idsParam = encodeURIComponent(json.results.join(","));
-            const url = `http://localhost:3000/search?ids=${idsParam}`;
-            window.open(url, '_blank');
+            const listener = (event: MessageEvent) => {
+                if (event.source === newWindow && event.data === 'READY_FOR_DATA') {
+                    newWindow.postMessage(message, '*');
+                    window.removeEventListener('message', listener);
+                }
+            };
+            window.addEventListener('message', listener);
         } catch (error) {
-            console.error('Search error:', error);
-            let errorMessage = 'Search failed. ';
-
-            if (error instanceof Error) {
-                errorMessage += error.message;
-            } else if (typeof error === 'string') {
-                errorMessage += error;
-            } else {
-                errorMessage += 'Unknown error occurred';
-            }
-            this.showStatus(errorMessage, 'error');
+            console.error('Failed to fetch image blob:', error);
+            this.showStatus("Error searching for your product", "error");
         } finally {
+            this.hideStatus();
             this.cleanup();
         }
     }
@@ -363,7 +378,7 @@ class Overlay {
     }
 }
 
-// Listen for messages from background
+// Listener for background script messages
 chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
     if (message.type === "MARK_SCREEN" && message.dataUrl) {
         try {
@@ -383,7 +398,7 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
             }
             sendResponse({ success: false, error: errorMessage });
         }
-        return true; // Indicates that sendResponse will be called asynchronously
+        return true;
     }
-    return false; // Indicates that sendResponse will not be called
+    return false;
 });
