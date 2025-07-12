@@ -22,7 +22,7 @@ const WalmartLensCapture: React.FC = () => {
     return (
         <div style={styles.container}>
             <div style={styles.header}>
-                <h1 style={styles.title}>Walmart Lens</h1>
+                <h1 style={styles.title}>Snap Cart</h1>
                 <p style={styles.subtitle}>Capture what you see. Shop what you love.</p>
             </div>
 
@@ -98,6 +98,7 @@ const styles: { [key: string]: React.CSSProperties } = {
         margin: 0,
         fontSize: '22px',
         fontWeight: 'bold',
+        color: '#FCB61A'
     },
     subtitle: {
         fontSize: '14px',

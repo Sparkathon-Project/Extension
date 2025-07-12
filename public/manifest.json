@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "Walmart Lens",
+    "name": "Snap Cart",
     "version": "1.0",
     "description": "Capture and mark screenshots from the browser.",
     "permissions": [

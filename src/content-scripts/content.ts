@@ -330,13 +330,8 @@ class Overlay {
     }
 
     private async openWebsite(query: string): Promise<void> {
-        const newWindow = window.open('http://localhost:3000/', '_blank');
-        if (!newWindow) {
-            console.error('Failed to open new window');
-            return;
-        }
         const clicks: [number, number][] = this.clicks.map(p => [p.x, p.y]);
-
+        this.showStatus("Finding products for you", "success")
         try {
             const response = await fetch(this.screenshot);
             const blob = await response.blob();
@@ -347,6 +342,11 @@ class Overlay {
                 clicks,
                 imageBlob: blob
             };
+            const newWindow = window.open('http://localhost:3000/', '_blank');
+            if (!newWindow) {
+                console.error('Failed to open new window');
+                return;
+            }
 
             const listener = (event: MessageEvent) => {
                 if (event.source === newWindow && event.data === 'READY_FOR_DATA') {
