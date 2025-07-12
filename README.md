@@ -1,13 +1,14 @@
 ### Prerequisites
 
-*   [Node.js](https://nodejs.org/en/) (v18 or newer) and npm
+*   [Node.js](https://nodejs.org/en/)
+*   [npm](https://www.npmjs.com/)
 *   [Google Chrome](https://www.google.com/chrome/)
 
 ### Installation & Setup
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/Sparkathon-Project/Extension.git
     cd Extension
     ```
 
